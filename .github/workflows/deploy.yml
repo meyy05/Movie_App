@@ -12,24 +12,60 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - run: npm ci
-      - run: npx ng build --base-href "/${{ github.event.repository.name }}/"
-      # fallback pour le routing Angular (rechargement d'une page / lien direct)
-      - run: cp dist/movie-app/browser/index.html dist/movie-app/browser/404.html
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Angular
+        run: npx ng build --configuration production --base-href "/${{ github.event.repository.name }}/"
+
+      - name: Show build output
+        run: find dist -maxdepth 4 | sort | head -80
+
+      - name: Locate output folder and prepare SPA fallback
+        id: out
+        run: |
+          # Cherche index.html (hors dossier server SSR), sinon index.csr.html
+          INDEX=$(find dist -type f -name index.html -not -path "*/server/*" | sort | head -n 1)
+          if [ -z "$INDEX" ]; then
+            INDEX=$(find dist -type f -name index.csr.html -not -path "*/server/*" | sort | head -n 1)
+          fi
+
+          if [ -z "$INDEX" ]; then
+            echo "::error::Aucun index.html / index.csr.html trouvé dans dist/"
+            exit 1
+          fi
+
+          OUT_DIR=$(dirname "$INDEX")
+          echo "Dossier de sortie : $OUT_DIR"
+
+          # Si le build ne produit que index.csr.html (SSR), on crée index.html
+          [ -f "$OUT_DIR/index.html" ] || cp "$INDEX" "$OUT_DIR/index.html"
+
+          # Fallback pour le routing Angular (rechargement / lien direct)
+          cp "$OUT_DIR/index.html" "$OUT_DIR/404.html"
+
+          # Désactive Jekyll
+          touch "$OUT_DIR/.nojekyll"
+
+          echo "path=$OUT_DIR" >> "$GITHUB_OUTPUT"
+
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist/movie-app/browser
+          path: ${{ steps.out.outputs.path }}
 
   deploy:
     needs: build
