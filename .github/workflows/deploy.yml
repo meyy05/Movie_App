@@ -26,10 +26,10 @@ jobs:
       - run: npm ci
       - run: npx ng build --base-href "/${{ github.event.repository.name }}/"
       # fallback pour le routing Angular (rechargement d'une page / lien direct)
-      - run: cp dist/Movie_App/browser/index.html dist/Movie_App/browser/404.html
+      - run: cp dist/movie-app/browser/index.html dist/movie-app/browser/404.html
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist/Movie_App/browser
+          path: dist/movie-app/browser
 
   deploy:
     needs: build
