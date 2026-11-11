@@ -1,0 +1,19 @@
+@if (loading()) {
+    <p>Loading movies...</p>
+} @else if (errorMessage()) {
+    <p role="alert">{{ errorMessage() }}</p>
+} @else {
+    <div class="container">
+        @for (movie of movies(); track movie.id) {
+            <div class="movie-card">
+                <div>
+                    <img [src]="`https://image.tmdb.org/t/p/original/${movie.poster_path}`" [alt]="movie.title">
+                </div>
+                <div class="movie-details">
+                    <h2>{{ movie.title }}</h2>
+                    <p>{{ movie.overview }}</p>
+                </div>
+            </div>
+        }
+    </div>
+}
